@@ -1,0 +1,88 @@
+name: Build Executables
+
+# Se ejecuta automáticamente cuando subís un tag de versión, ej: v1.0.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # ── Job 1: compilar el .exe en una máquina virtual de Windows ──────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compilar ejecutable Windows
+        run: pyinstaller --onefile --windowed --name="BudgetCalculator" budget_calculator.py
+
+      - name: Subir el .exe como artefacto temporal
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/BudgetCalculator.exe
+
+  # ── Job 2: compilar el binario en una máquina virtual de Linux ────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias del sistema (necesarias para Tkinter)
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compilar ejecutable Linux
+        run: pyinstaller --onefile --windowed --name="BudgetCalculator" budget_calculator.py
+
+      - name: Subir el binario como artefacto temporal
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: dist/BudgetCalculator
+
+  # ── Job 3: tomar ambos artefactos y publicarlos en un GitHub Release ──────
+  create-release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el .exe de Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: ./release-files
+
+      - name: Descargar el binario de Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binary
+          path: ./release-files
+
+      - name: Crear el Release con ambos archivos adjuntos
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./release-files/BudgetCalculator.exe
+            ./release-files/BudgetCalculator
+          generate_release_notes: true
