@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - 'v*'
+permissions:
+  contents: write
 
 jobs:
   # ── Job 1: compilar el .exe en una máquina virtual de Windows ──────────────
